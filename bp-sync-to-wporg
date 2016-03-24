@@ -1,0 +1,45 @@
+#!/bin/bash
+
+basedir=$(pwd)
+basedir=$basedir/wporg-buddypress-sync
+
+bporgdir=$basedir/bporg
+wporgdir=$basedir/wporg
+
+# Get a fresh install from buddypress.org, and build it.
+rm -rf $basedir 
+svn export --ignore-externals https://buddypress.svn.wordpress.org/trunk $bporgdir 
+cd $bporgdir
+npm install
+grunt build
+
+# Get a fresh svn co of plugins.svn.wordpress.org trunk.
+rm -rf $wporgdir
+svn co --ignore-externals https://plugins.svn.wordpress.org/buddypress/trunk $wporgdir 
+
+# CRITICAL! Grab the stable tag from the readme so that you don't wipe it out.
+stable_tag=$( cat $wporgdir/readme.txt | sed -rn 's/Stable tag: ([0-9\.]+)/\1/p' )
+if [ "$stable_tag" == '' ]; then
+	echo "Could not find a stable tag. Aborting."
+	exit
+fi
+
+# Replace the files in the wporg checkout with the built files from bporg.
+rm -rf $wporgdir/*
+cp -r $bporgdir/build/* $wporgdir/ 
+
+# CRITICAL! Ensure that the stable tag remains the same.
+stable_regex='s/\(^Stable tag\:\s\+\)\([0-9\.]\+\)/\1'"$stable_tag"/
+sed -i "{$stable_regex}" $wporgdir/readme.txt 
+
+# This ought to happen automatically, but gee whiz, it doesn't.
+cd $wporgdir
+svn propset svn:externals 'bbpress https://bbpress.svn.wordpress.org/tags/1.2/' bp-forums
+
+# Stuff may have been added. @todo deletions? I don't know anything about svn.
+svn add --force .
+
+cd $wporgdir
+svn ci -m "Sync from buddypress.svn.wordpress.org/trunk for updated strings."
+
+exit
