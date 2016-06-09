@@ -19,6 +19,7 @@ svn co --ignore-externals https://plugins.svn.wordpress.org/buddypress/trunk $wp
 
 # CRITICAL! Grab the stable tag from the readme so that you don't wipe it out.
 stable_tag=$( cat $wporgdir/readme.txt | sed -rn 's/Stable tag: ([0-9\.]+)/\1/p' )
+minimum_wp=$( cat $wporgdir/readme.txt | sed -rn 's/Requires at least: ([0-9\.]+)/\1/p' )
 if [ "$stable_tag" == '' ]; then
 	echo "Could not find a stable tag. Aborting."
 	exit
@@ -30,7 +31,9 @@ cp -r $bporgdir/build/* $wporgdir/
 
 # CRITICAL! Ensure that the stable tag remains the same.
 stable_regex='s/\(^Stable tag\:\s\+\)\([0-9\.]\+\)/\1'"$stable_tag"/
+wp_regex='s/\(^Requires at least\:\s\+\)\([0-9\.]\+\)/\1'"$minimum_wp"/
 sed -i "{$stable_regex}" $wporgdir/readme.txt 
+sed -i "{$wp_regex}" $wporgdir/readme.txt
 
 # This ought to happen automatically, but gee whiz, it doesn't.
 cd $wporgdir
